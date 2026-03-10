@@ -1,0 +1,107 @@
+Metadata-Version: 2.4
+Name: indian-education-system
+Version: 0.1.0
+Summary: Interactive analytics and dashboard for Indian education indicators.
+Author-email: Your Name <you@example.com>
+License: MIT
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: pandas>=2.0
+Requires-Dist: numpy>=1.25
+Requires-Dist: matplotlib>=3.8
+Requires-Dist: seaborn>=0.13
+Requires-Dist: scikit-learn>=1.3
+Requires-Dist: streamlit>=1.25
+Requires-Dist: plotly>=6.0
+Requires-Dist: kaleido>=0.2
+Requires-Dist: scipy>=1.11
+Requires-Dist: statsmodels>=0.14
+Requires-Dist: reportlab>=4.0
+Requires-Dist: missingno>=0.5
+Requires-Dist: pandas_datareader>=0.10
+Requires-Dist: requests>=2.31
+
+# Indian Education System Explorer
+
+A structured Python project that analyzes and visualizes key education metrics for India.
+
+This repository is organized around the **Data Story** framework: **Collect → Clean → Analyze → Visualize → Communicate**. It includes:
+
+- ✅ **Data sourcing** via local CSV files or live World Bank API metrics
+- ✅ **Modular code** in `src/` for loading, cleaning, modeling, and visualizing
+- ✅ **Interactive dashboard** using Streamlit (`app/streamlit_app.py`)
+- ✅ **Statistical/ML analysis** (regression, clustering) using scikit-learn
+- ✅ **Reusable notebooks** for exploratory analysis (`notebooks/`)
+- ✅ **Tests** with `pytest` (`tests/`)
+
+
+## Project Structure
+
+- `src/` - Core modules for data loading, cleaning, analysis, and visualization
+- `data/` - Place datasets here (e.g., `2015_16_Districtwise.csv`)
+- `app/` - Streamlit dashboard
+- `notebooks/` - Exploratory notebooks
+- `tests/` - Unit tests
+
+
+## Quick Start
+
+1. **Install dependencies**
+
+```bash
+python -m pip install -r requirements.txt
+```
+
+2. **Add your dataset**
+
+Place your district-level CSV in `data/2015_16_Districtwise.csv`.
+
+3. **Run the Streamlit dashboard**
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+4. **Run the CLI preview**
+
+```bash
+python main.py --local-data data/2015_16_Districtwise.csv
+python main.py --fetch-world-bank
+```
+
+
+## What’s Inside
+
+### Data Sources
+- **Local CSV**: District-level dataset (e.g., literacy, enrollment). The project currently uses a placeholder dataset but is designed to work with real government or Kaggle files.
+- **World Bank API**: Live fetching of indicators like enrollment rates and adult literacy.
+
+### Analyses Included
+- **Exploratory Data Analysis (EDA)**: correlations, distributions, and state-level comparisons.
+- **Machine Learning**: regression (Linear, Ridge, Random Forest) and clustering (KMeans) to find education patterns.
+- **Dashboard**: Interactive charts and charts generated with Plotly.
+- **Reporting (future)**: Export model summaries and findings to PDF.
+
+
+## Project Evolution / Resume Boosters
+
+- ✅ Added **API integration** and fallback to local data
+- ✅ Added **Streamlit interactive dashboard** (deployable to Streamlit Cloud)
+- ✅ Added **statistical analysis and clustering** for actionable insights
+- ✅ Structured as a **modular package** for reuse
+- ✅ Added **testing** and **documentation** for maintainability
+
+
+## Notes on Data Ethics & Accessibility
+
+- Use color-blind friendly palettes in plots.
+- Be mindful of biases in datasets (e.g., under-reporting in rural regions).
+- Store any sensitive or personally identifiable data securely and anonymize when possible.
+
+
+---
+
+If you want to level this project up further, consider:
+- Adding **state-level mapping** (GeoJSON) and choropleth maps
+- Building a **PDF report generator** (ReportLab) summarizing key insights
+- Adding **automated data validation tests** for new uploads

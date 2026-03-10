@@ -1,0 +1,31 @@
+name: Streamlit Deploy
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  deploy:
+    name: Deploy to Streamlit Cloud
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via Streamlit Cloud API
+        env:
+          STREAMLIT_TOKEN: ${{ secrets.STREAMLIT_CLOUD_TOKEN }}
+          STREAMLIT_APP_ID: ${{ secrets.STREAMLIT_APP_ID }}
+        run: |
+          if [ -z "$STREAMLIT_TOKEN" ] || [ -z "$STREAMLIT_APP_ID" ]; then
+            echo "STREAMLIT_CLOUD_TOKEN and STREAMLIT_APP_ID must be set as secrets to deploy."
+            exit 1
+          fi
+
+          echo "Triggering Streamlit deployment..."
+          curl -X POST \
+            -H "Authorization: Bearer $STREAMLIT_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"branch": "main"}' \
+            "https://api.streamlit.io/v1/apps/$STREAMLIT_APP_ID/deploy" \
+            | jq -r '.'
