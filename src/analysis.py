@@ -129,3 +129,37 @@ def gender_gap_ttest(
     t_stat, p_value = ttest_ind(male, female, equal_var=False, nan_policy="omit")
 
     return {"t_stat": float(t_stat), "p_value": float(p_value)}
+
+
+def forecast_time_series(
+    df: pd.DataFrame,
+    year_column: str,
+    value_column: str,
+    periods: int = 5,
+) -> pd.DataFrame:
+    """Forecast a time series value using a simple linear trend.
+
+    Returns a dataframe containing the original series plus the forecast.
+    """
+
+    if year_column not in df.columns or value_column not in df.columns:
+        raise ValueError("Dataframe must contain the specified year and value columns.")
+
+    ts = df[[year_column, value_column]].dropna().copy()
+    ts = ts.sort_values(year_column)
+
+    if ts.empty:
+        return pd.DataFrame(columns=[year_column, value_column])
+
+    # Fit a simple linear regression to the series.
+    model = LinearRegression()
+    X = ts[[year_column]]
+    y = ts[value_column]
+    model.fit(X, y)
+
+    last_year = int(ts[year_column].max())
+    future_years = pd.Series(range(last_year + 1, last_year + 1 + periods), name=year_column)
+    forecast = pd.DataFrame({year_column: future_years})
+    forecast[value_column] = model.predict(future_years.to_frame())
+
+    return pd.concat([ts, forecast], ignore_index=True)

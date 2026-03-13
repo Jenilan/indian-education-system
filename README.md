@@ -103,6 +103,9 @@ python main.py --fetch-world-bank
 
 - ✅ Added **API integration** and fallback to local data
 - ✅ Added **Streamlit interactive dashboard** (deployable to Streamlit Cloud)
+- ✅ Added **state-level mapping** (bubble maps) to visualize regional disparities
+- ✅ Added **World Bank indicator explorer** with time series charts and simple forecasting
+- ✅ Added **dataset upload support** so you can analyze your own CSVs
 - ✅ Added **statistical analysis and clustering** for actionable insights
 - ✅ Structured as a **modular package** for reuse
 - ✅ Added **testing** and **documentation** for maintainability

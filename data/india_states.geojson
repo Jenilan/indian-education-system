@@ -1,0 +1,101 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"state": "Gujarat"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [68.0, 23.0],
+            [74.0, 23.0],
+            [74.0, 24.5],
+            [68.0, 24.5],
+            [68.0, 23.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"state": "Maharashtra"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [72.0, 17.0],
+            [80.0, 17.0],
+            [80.0, 22.0],
+            [72.0, 22.0],
+            [72.0, 17.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"state": "Karnataka"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [74.0, 12.0],
+            [78.0, 12.0],
+            [78.0, 17.0],
+            [74.0, 17.0],
+            [74.0, 12.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"state": "Bihar"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [83.0, 24.0],
+            [88.0, 24.0],
+            [88.0, 27.0],
+            [83.0, 27.0],
+            [83.0, 24.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"state": "West Bengal"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [87.0, 21.0],
+            [90.0, 21.0],
+            [90.0, 26.0],
+            [87.0, 26.0],
+            [87.0, 21.0]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"state": "Delhi"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [76.8, 28.4],
+            [77.5, 28.4],
+            [77.5, 28.9],
+            [76.8, 28.9],
+            [76.8, 28.4]
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-﻿"""Streamlit dashboard for the Indian Education System project."""
+"""Streamlit dashboard for the Indian Education System project."""
 
 from __future__ import annotations
 
@@ -16,20 +16,31 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from src import analysis, data_loader, utils, viz
+from src import analysis, data_loader, geodata, utils, viz
 
 
 LOGGER = logging.getLogger(__name__)
 
 
-def _load_local_dataset() -> tuple[dict[str, object] | None, pd.DataFrame | None]:
+@st.cache_data(show_spinner=False)
+def _load_local_dataset(path: str | None = None) -> tuple[dict[str, object] | None, pd.DataFrame | None]:
     """Attempt to load the local district-level dataset."""
 
     try:
-        df = data_loader.load_local_district_data()
+        df = data_loader.load_district_dataset(path)
         return None, df
     except FileNotFoundError as exc:
         return {"error": str(exc)}, None
+    except Exception as exc:
+        return {"error": f"Failed to load dataset: {exc}"}, None
+
+
+@st.cache_data(show_spinner=False)
+def _load_uploaded_dataset(uploaded_file) -> pd.DataFrame:
+    """Load and clean a CSV uploaded via Streamlit."""
+
+    df = pd.read_csv(uploaded_file)
+    return data_loader.clean_local_district_df(df)
 
 
 def _render_overview(df: pd.DataFrame) -> None:
@@ -46,9 +57,49 @@ def _render_overview(df: pd.DataFrame) -> None:
         fig_bar = viz.plot_state_literacy_bar(df)
         st.plotly_chart(fig_bar, use_container_width=True)
 
+    if "statname" in df.columns:
+        st.subheader("State-level map")
+        df_with_geo = geodata.add_state_coordinates(df, state_column="statname")
+
+        metric_options = [
+            c
+            for c in ["overall_li", "male_lit", "female_lit", "p_sc_pop", "p_st_pop"]
+            if c in df_with_geo.columns
+        ]
+        if metric_options:
+            metric = st.selectbox("Choose metric for map", metric_options, index=0)
+            try:
+                fig_map = viz.plot_state_bubble_map(
+                    df_with_geo, value_column=metric, state_column="statname"
+                )
+                st.plotly_chart(fig_map, use_container_width=True)
+            except ValueError as exc:
+                st.warning(str(exc))
+        else:
+            st.info("Map requires state-level numeric metrics (e.g., literacy or population).")
+
 
 def _render_analysis(df: pd.DataFrame) -> None:
     st.header("📊 Analysis")
+
+    if "statname" in df.columns:
+        st.subheader("State drilldown")
+        states = sorted(df["statname"].dropna().unique().tolist())
+        state_choice = st.selectbox("Select a state", ["All"] + states, index=0)
+
+        if state_choice != "All":
+            state_df = df[df["statname"] == state_choice]
+            st.markdown(f"### {state_choice} — District-level snapshot")
+            st.write(
+                "Showing district-level literacy and enrollment statistics for the selected state."
+            )
+            if "overall_li" in state_df.columns:
+                top_n = st.slider("Show top N districts by overall literacy", 3, 20, 10)
+                top_districts = (
+                    state_df.sort_values("overall_li", ascending=False)
+                    .head(top_n)[[c for c in ["district", "distname", "DISTRICT", "overall_li"] if c in state_df.columns]]
+                )
+                st.dataframe(top_districts.reset_index(drop=True))
 
     if "male_lit" in df.columns and "female_lit" in df.columns:
         st.subheader("Gender gap test")
@@ -155,11 +206,23 @@ def _render_downloads(df: pd.DataFrame) -> None:
                 "Could not export chart images — make sure `kaleido` is installed so charts can be embedded in the PDF."
             )
 
+        # Create a summary table of literacy by state to include in the report.
+        state_summary = None
+        if "statname" in df.columns and "overall_li" in df.columns:
+            state_summary = (
+                df.groupby("statname")["overall_li"]
+                .mean()
+                .reset_index()
+                .sort_values("overall_li", ascending=False)
+                .rename(columns={"overall_li": "avg_literacy"})
+            )
+
         generate_pdf_report(
             output_path=str(report_path),
             title="Indian Education System - Summary Report",
             narrative=narrative,
             figure_paths=saved_figures,
+            tables={"Top states by average literacy": state_summary} if state_summary is not None else None,
         )
 
         st.success(f"Report created: {report_path}")
@@ -189,6 +252,123 @@ def _render_about() -> None:
     )
 
 
+def _render_map(df: pd.DataFrame) -> None:
+    st.header("🗺️ Map Explorer")
+    st.markdown(
+        "Use map visualizations to compare state-level performance across indicators. "
+        "Switch between bubbles and choropleth to find insights quickly."
+    )
+
+    if "statname" not in df.columns:
+        st.warning("Map view requires a `statname` column in the dataset.")
+        return
+
+    df_geo = geodata.add_state_coordinates(df, state_column="statname")
+    metric_options = [
+        c
+        for c in ["overall_li", "male_lit", "female_lit", "p_sc_pop", "p_st_pop"]
+        if c in df_geo.columns
+    ]
+    if not metric_options:
+        st.warning("No supported numeric columns found for mapping.")
+        return
+
+    map_type = st.radio("Map type", ["Bubble", "Choropleth"], horizontal=True)
+    metric = st.selectbox("Metric to map", metric_options, index=0)
+
+    if map_type == "Bubble":
+        try:
+            fig = viz.plot_state_bubble_map(
+                df_geo, value_column=metric, state_column="statname"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        except ValueError as ex:
+            st.warning(str(ex))
+
+    else:
+        geojson_path = utils.resource_path("data", "india_states.geojson")
+        if not geojson_path.exists():
+            st.error(
+                "Choropleth map requires a GeoJSON file at `data/india_states.geojson`. "
+                "Please ensure the file exists in the project folder."
+            )
+            return
+
+        try:
+            fig = viz.plot_state_choropleth(
+                df_geo,
+                geojson_path=str(geojson_path),
+                value_column=metric,
+                state_column="statname",
+                title=f"State-level {metric.replace('_', ' ').title()} (Choropleth)",
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as ex:
+            st.warning(f"Could not render choropleth map: {ex}")
+
+
+def _render_world_bank() -> None:
+    st.header("🌍 World Bank Indicator Explorer")
+    st.markdown(
+        "Explore time-series indicators for India from the World Bank. "
+        "Choose an indicator and the year range to visualize trends."
+    )
+
+    indicator = st.selectbox(
+        "Indicator",
+        options=list(data_loader.WORLD_BANK_INDICATORS.keys()),
+        format_func=lambda k: f"{k} — {data_loader.WORLD_BANK_INDICATORS[k]}",
+    )
+
+    current_year = pd.Timestamp.now().year
+    start_year, end_year = st.slider(
+        "Year range", 1990, current_year, (2000, min(current_year, 2022))
+    )
+
+    try:
+        with st.spinner("Fetching World Bank data..."):
+            wb_df = data_loader.fetch_world_bank_indicator(
+                indicator, start_year=start_year, end_year=end_year
+            )
+
+        if wb_df.empty:
+            st.warning("No data returned for this indicator/time period.")
+            return
+
+        st.dataframe(wb_df)
+
+        fig = viz.plot_time_series(
+            wb_df,
+            x_col="year",
+            y_col=indicator,
+            title=f"{data_loader.WORLD_BANK_INDICATORS[indicator]} ({indicator})",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        if st.checkbox("Add simple linear forecast", value=False):
+            forecast_df = analysis.forecast_time_series(
+                wb_df, year_column="year", value_column=indicator, periods=5
+            )
+            fig_forecast = viz.plot_time_series(
+                forecast_df,
+                x_col="year",
+                y_col=indicator,
+                title=f"{data_loader.WORLD_BANK_INDICATORS[indicator]} + Forecast",
+            )
+            st.plotly_chart(fig_forecast, use_container_width=True)
+
+        csv_bytes = wb_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="Download indicator data (CSV)",
+            data=csv_bytes,
+            file_name=f"{indicator}_{start_year}_{end_year}.csv",
+            mime="text/csv",
+        )
+
+    except Exception as exc:
+        st.error(f"Unable to fetch World Bank data: {exc}")
+
+
 def main() -> None:
     st.set_page_config(
         page_title="Indian Education System Explorer",
@@ -199,7 +379,15 @@ def main() -> None:
     st.title("📚 Indian Education System Explorer")
 
     page = st.sidebar.radio(
-        "Page", ["Overview", "Analysis", "Download", "About"]
+        "Page",
+        [
+            "Overview",
+            "Map",
+            "Analysis",
+            "World Bank",
+            "Download",
+            "About",
+        ],
     )
 
     source = st.sidebar.radio(
@@ -208,14 +396,51 @@ def main() -> None:
 
     df = None
     error = None
+    uploaded = None
 
     if source.startswith("Local"):
         st.sidebar.markdown(
-            "**Local dataset requirements**: Place a CSV file named `2015_16_Districtwise.csv` in the `data/` directory."
+            "**Local dataset**: upload a CSV, or provide a local file path (best for very large files). "
+            "Supported: `.csv`, `.xlsx`, `.parquet`."
         )
-        error, df = _load_local_dataset()
-        if error:
-            st.sidebar.error(error["error"])
+
+        default_path = os.environ.get("EDU_LOCAL_DATA_PATH", "")
+        data_dir = utils.data_dir()
+        if data_dir.exists():
+            local_options = sorted(
+                [str(p) for p in data_dir.glob("*.csv")]
+                + [str(p) for p in data_dir.glob("*.xlsx")]
+                + [str(p) for p in data_dir.glob("*.xls")]
+                + [str(p) for p in data_dir.glob("*.parquet")]
+            )
+        else:
+            local_options = []
+
+        path_choice = None
+        if local_options:
+            path_choice = st.sidebar.selectbox(
+                "Or choose a dataset from `data/`",
+                options=[""] + local_options,
+                index=0,
+            )
+
+        path_input = st.sidebar.text_input(
+            "Or paste full dataset path",
+            value=default_path,
+            help="Tip: set env var `EDU_LOCAL_DATA_PATH` to persist this. Quotes are OK; they’ll be stripped.",
+        ).strip()
+
+        uploaded = st.sidebar.file_uploader(
+            "Or upload a district-level CSV (smaller files)", type=["csv"]
+        )
+
+        if uploaded is not None:
+            df = _load_uploaded_dataset(uploaded)
+        else:
+            resolved_path = path_input or (path_choice if path_choice else None)
+            error, df = _load_local_dataset(resolved_path)
+            if error:
+                st.sidebar.error(error["error"])
 
     if page == "Overview":
         if df is None:
@@ -223,11 +448,20 @@ def main() -> None:
         else:
             _render_overview(df)
 
+    elif page == "Map":
+        if df is None:
+            st.warning("Please load a local dataset to view the map.")
+        else:
+            _render_map(df)
+
     elif page == "Analysis":
         if df is None:
             st.warning("Please load a local dataset to run the analysis.")
         else:
             _render_analysis(df)
+
+    elif page == "World Bank":
+        _render_world_bank()
 
     elif page == "Download":
         if df is None:
